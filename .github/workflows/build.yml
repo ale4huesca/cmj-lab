@@ -14,6 +14,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Localizar el proyecto
+        run: |
+          buscar() { find . -name settings.gradle.kts -not -path './.git/*' | head -1; }
+          if [ -z "$(buscar)" ]; then
+            for z in $(find . -name '*.zip' -not -path './.git/*'); do unzip -o -q "$z" -d _descomprimido; done
+          fi
+          S="$(buscar)"
+          if [ -z "$S" ]; then
+            echo "::error::No encuentro settings.gradle.kts. Sube el contenido de la carpeta CMJLab-Android."
+            find . -not -path './.git*' | head -100
+            exit 1
+          fi
+          echo "Proyecto encontrado en: $(dirname "$S")"
+          echo "PROJ=$(dirname "$S")" >> "$GITHUB_ENV"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -24,10 +39,11 @@ jobs:
           gradle-version: '8.10.2'
 
       - name: Compilar
+        working-directory: ${{ env.PROJ }}
         run: gradle assembleDebug --stacktrace --no-daemon
 
       - name: Renombrar APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk CMJLab.apk
+        run: cp "$PROJ/app/build/outputs/apk/debug/app-debug.apk" CMJLab.apk
 
       - uses: actions/upload-artifact@v4
         with:
